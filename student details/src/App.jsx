@@ -7,22 +7,48 @@ function App() {
   const [pin, setPin] = useState('')
   const [students, setStudents] = useState([])
 
-  const addStudent = () => {
+  const addStudent = async () => {
     if (name === '' || pin === '') {
       alert('Please enter name and PIN')
       return
     }
 
-    const newStudent = {
-      name: name,
-      pin: pin
+    try {
+      const response = await fetch('http://127.0.0.1:5000/students', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: name,
+          pin: pin
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert('Student added successfully')
+
+        // Add student to table
+        const newStudent = {
+          name: name,
+          pin: pin
+        }
+
+        setStudents([...students, newStudent])
+
+        // Clear inputs
+        setName('')
+        setPin('')
+      } else {
+        alert(data.message)
+      }
+
+    } catch (error) {
+      console.error(error)
+      alert('Cannot connect to Python server')
     }
-
-    setStudents([...students, newStudent])
-
-    // Clear input fields
-    setName('')
-    setPin('')
   }
 
   return (
@@ -43,12 +69,14 @@ function App() {
         onChange={(e) => setPin(e.target.value)}
       />
 
-      <button onClick={addStudent}>Add</button>
+      <button onClick={addStudent}>
+        Add
+      </button>
 
       <br />
       <br />
 
-      <table border="1">
+      <table>
         <thead>
           <tr>
             <th>S.No</th>
