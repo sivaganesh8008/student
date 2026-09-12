@@ -4,28 +4,26 @@ import sqlite3
 
 app = Flask(__name__)
 
-# Allow React frontend to communicate with Flask
+# Allow React to connect to Flask
 CORS(app)
 
-# SQLite database file
 DATABASE = "students.db"
 
 
-# --------------------------------------------------
-# Database connection
-# --------------------------------------------------
+# ==================================================
+# DATABASE CONNECTION
+# ==================================================
+
 def get_db_connection():
     conn = sqlite3.connect(DATABASE)
-
-    # Return database rows like dictionaries
     conn.row_factory = sqlite3.Row
-
     return conn
 
 
-# --------------------------------------------------
-# Create database and students table
-# --------------------------------------------------
+# ==================================================
+# INITIALIZE DATABASE
+# ==================================================
+
 def init_db():
 
     conn = get_db_connection()
@@ -44,61 +42,56 @@ def init_db():
     print("Database initialized successfully!")
 
 
-# --------------------------------------------------
-# Home route
-# --------------------------------------------------
+# ==================================================
+# HOME
+# ==================================================
+
 @app.route("/", methods=["GET"])
 def home():
 
     return jsonify({
-        "message": "Student API is running"
+        "message": "Student Management API is running"
     })
 
 
-# --------------------------------------------------
-# Add student
+# ==================================================
+# ADD STUDENT
 # POST /students
-# --------------------------------------------------
+# ==================================================
+
 @app.route("/students", methods=["POST"])
 def add_student():
 
     try:
 
-        # Get JSON data from React
         data = request.get_json()
 
-        # Check if data was received
         if not data:
             return jsonify({
                 "message": "No data received"
             }), 400
 
-        # Get name and PIN
         name = data.get("name")
         pin = data.get("pin")
 
-        # Validate data
+        # Check empty values
         if not name or not pin:
 
             return jsonify({
                 "message": "Name and PIN are required"
             }), 400
 
-        # Remove unnecessary spaces
         name = name.strip()
         pin = pin.strip()
 
-        # Validate again after removing spaces
         if not name or not pin:
 
             return jsonify({
                 "message": "Name and PIN cannot be empty"
             }), 400
 
-        # Connect to database
         conn = get_db_connection()
 
-        # Insert student
         cursor = conn.execute(
             """
             INSERT INTO students (name, pin)
@@ -107,16 +100,12 @@ def add_student():
             (name, pin)
         )
 
-        # Save changes
         conn.commit()
 
-        # Get newly created student ID
         student_id = cursor.lastrowid
 
-        # Close connection
         conn.close()
 
-        # Send response to React
         return jsonify({
             "message": "Student added successfully",
             "student": {
@@ -136,19 +125,18 @@ def add_student():
         }), 500
 
 
-# --------------------------------------------------
-# Get all students
+# ==================================================
+# GET ALL STUDENTS
 # GET /students
-# --------------------------------------------------
+# ==================================================
+
 @app.route("/students", methods=["GET"])
-def get_students():
+def get_all_students():
 
     try:
 
-        # Connect to database
         conn = get_db_connection()
 
-        # Get all students
         students = conn.execute(
             """
             SELECT id, name, pin
@@ -157,10 +145,8 @@ def get_students():
             """
         ).fetchall()
 
-        # Close database
         conn.close()
 
-        # Convert rows to dictionaries
         result = []
 
         for student in students:
@@ -171,7 +157,6 @@ def get_students():
                 "pin": student["pin"]
             })
 
-        # Return JSON
         return jsonify(result), 200
 
     except Exception as e:
@@ -184,10 +169,11 @@ def get_students():
         }), 500
 
 
-# --------------------------------------------------
-# Get one student
+# ==================================================
+# GET ONE STUDENT
 # GET /students/<id>
-# --------------------------------------------------
+# ==================================================
+
 @app.route("/students/<int:student_id>", methods=["GET"])
 def get_student(student_id):
 
@@ -206,14 +192,12 @@ def get_student(student_id):
 
         conn.close()
 
-        # Student not found
         if student is None:
 
             return jsonify({
                 "message": "Student not found"
             }), 404
 
-        # Return student
         return jsonify({
             "id": student["id"],
             "name": student["name"],
@@ -222,73 +206,17 @@ def get_student(student_id):
 
     except Exception as e:
 
-        print("Error:", e)
-
         return jsonify({
             "message": "Something went wrong",
             "error": str(e)
         }), 500
 
 
-# --------------------------------------------------
-# Delete student
-# DELETE /students/<id>
-# --------------------------------------------------
-@app.route("/students/<int:student_id>", methods=["DELETE"])
-def delete_student(student_id):
-
-    try:
-
-        conn = get_db_connection()
-
-        # Check whether student exists
-        student = conn.execute(
-            """
-            SELECT id
-            FROM students
-            WHERE id = ?
-            """,
-            (student_id,)
-        ).fetchone()
-
-        if student is None:
-
-            conn.close()
-
-            return jsonify({
-                "message": "Student not found"
-            }), 404
-
-        # Delete student
-        conn.execute(
-            """
-            DELETE FROM students
-            WHERE id = ?
-            """,
-            (student_id,)
-        )
-
-        conn.commit()
-        conn.close()
-
-        return jsonify({
-            "message": "Student deleted successfully"
-        }), 200
-
-    except Exception as e:
-
-        print("Error:", e)
-
-        return jsonify({
-            "message": "Unable to delete student",
-            "error": str(e)
-        }), 500
-
-
-# --------------------------------------------------
-# Update student
+# ==================================================
+# UPDATE STUDENT
 # PUT /students/<id>
-# --------------------------------------------------
+# ==================================================
+
 @app.route("/students/<int:student_id>", methods=["PUT"])
 def update_student(student_id):
 
@@ -316,7 +244,7 @@ def update_student(student_id):
 
         conn = get_db_connection()
 
-        # Check if student exists
+        # Check student
         student = conn.execute(
             """
             SELECT id
@@ -334,7 +262,7 @@ def update_student(student_id):
                 "message": "Student not found"
             }), 404
 
-        # Update student
+        # Update
         conn.execute(
             """
             UPDATE students
@@ -348,12 +276,7 @@ def update_student(student_id):
         conn.close()
 
         return jsonify({
-            "message": "Student updated successfully",
-            "student": {
-                "id": student_id,
-                "name": name,
-                "pin": pin
-            }
+            "message": "Student updated successfully"
         }), 200
 
     except Exception as e:
@@ -366,18 +289,70 @@ def update_student(student_id):
         }), 500
 
 
-# --------------------------------------------------
-# Start Flask server
-# --------------------------------------------------
+# ==================================================
+# DELETE STUDENT
+# DELETE /students/<id>
+# ==================================================
+
+@app.route("/students/<int:student_id>", methods=["DELETE"])
+def delete_student(student_id):
+
+    try:
+
+        conn = get_db_connection()
+
+        student = conn.execute(
+            """
+            SELECT id
+            FROM students
+            WHERE id = ?
+            """,
+            (student_id,)
+        ).fetchone()
+
+        if student is None:
+
+            conn.close()
+
+            return jsonify({
+                "message": "Student not found"
+            }), 404
+
+        conn.execute(
+            """
+            DELETE FROM students
+            WHERE id = ?
+            """,
+            (student_id,)
+        )
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "message": "Student deleted successfully"
+        }), 200
+
+    except Exception as e:
+
+        print("Error:", e)
+
+        return jsonify({
+            "message": "Unable to delete student",
+            "error": str(e)
+        }), 500
+
+
+# ==================================================
+# START SERVER
+# ==================================================
+
 if __name__ == "__main__":
 
-    # Create database/table
     init_db()
 
-    # Start server
     app.run(
         host="127.0.0.1",
         port=5000,
         debug=True
     )
-
